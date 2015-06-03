@@ -1,0 +1,13 @@
+# Standard sbt ignores
+target/
+src_managed/
+project/boot/
+test-reports/
+*.log*
+.ensime*
+.idea*
+.vagrant
+
+# ignore deployment configs
+config/*.conf
+config/*.sh
