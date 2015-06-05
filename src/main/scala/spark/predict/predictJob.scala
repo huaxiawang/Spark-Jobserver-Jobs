@@ -28,6 +28,7 @@ object predictJob extends SparkJob{
     val sqlContext = new HiveContext(sc)
     val specialty = jobConfig.getString("input.specialty")
     val state = jobConfig.getString("input.state")
+    val threshold = 0.3
     val queryString = "select " +
       "NPPES_PROVIDER_LAST_ORG_NAME, NPPES_PROVIDER_FIRST_NAME, DRUG_NAME, GENERIC_NAME, NPPES_PROVIDER_CITY " +
       "from prescription " +
@@ -42,7 +43,13 @@ object predictJob extends SparkJob{
       .groupBy(_._1).mapValues(values => values.map(v => (v._2, v._3))
       .groupBy(_._1).map{case(k, v) => (k, build_predict_set(v.toArray.map(_._2), medicine_list))})
 
-    Map(state -> predictData.map{case(city, data_map) => (city, data_map.map{case(k, v) => (k, model.predict(v))})}.collect().toMap)
+    Map( state ->
+      predictData.map{case(city, data_map) =>
+        (city, data_map.map{case(k, v) => (k, model.predict(v))}.filter(_._2 > threshold))
+      }.filter(_._2.size != 0).sortBy({case(city, data_map) =>
+          data_map.foldLeft(0.0)(_+_._2)/data_map.size
+      }, false).collect().toMap
+    )
   }
 
   override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
